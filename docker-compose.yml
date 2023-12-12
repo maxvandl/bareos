@@ -85,7 +85,6 @@ services:
   #     - ./data/bareos/config/webui:/etc/bareos-webui
   #     - ./data/bareos/data/webui:/usr/share/bareos-webui
 
-
   bareos-db:
     image: postgres:15
     volumes:
