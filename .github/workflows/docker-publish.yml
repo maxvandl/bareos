@@ -110,6 +110,18 @@ jobs:
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.source=https://github.com/maxvandl/bareos,annotation-index.org.opencontainers.image.description=bareos
           platforms: ${{ matrix.platforms }}
 
+      - name: Build and push Docker image for webui
+        id: build-and-push-webui
+        uses: docker/build-push-action@v5
+        with:
+          context: ./webui
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bareos-webui:22.0.3
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=image,name=target,annotation-index.org.opencontainers.image.source=https://github.com/maxvandl/bareos,annotation-index.org.opencontainers.image.description=bareos
+          platforms: ${{ matrix.platforms }}
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker
       # repository is public to avoid leaking data.  If you would like to publish
