@@ -1,0 +1,15 @@
+---
+version: 2
+updates:
+  - package-ecosystem: "docker" # See documentation for possible values
+    directory: "/src" # Location of package manifests
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "docker" # See documentation for possible values
+    directory: "/bareos-chart" # Location of package manifests
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "github-actions" # See documentation for possible values
+    directory: "/"
+    schedule:
+      interval: "daily"
