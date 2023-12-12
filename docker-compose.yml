@@ -59,18 +59,6 @@ services:
       #- PUID=1500 # force bareos user ID
       #- PGID=1500 # force bareos group ID
 
-  # bareos-webui:
-  #   image: bareos-webui:22.0.3
-  #   build: ./webui
-  #   ports:
-  #     - 8080:80
-  #   environment:
-  #     - BAREOS_DIR_HOST=bareos-dir
-  #     - SERVER_STATS=yes
-  #   volumes:
-  #     - ./data/bareos/config/webui:/etc/bareos-webui
-
-
   bareos-webui:
     image: bareos-webui:22.0.3
     build: ./webui
@@ -96,8 +84,6 @@ services:
   #   volumes:
   #     - ./data/bareos/config/webui:/etc/bareos-webui
   #     - ./data/bareos/data/webui:/usr/share/bareos-webui
-
-
 
 
   bareos-db:
