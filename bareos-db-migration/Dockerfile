@@ -1,5 +1,5 @@
 # Bareos director Dockerfile
-FROM ubuntu:focal
+FROM ubuntu:jammy
 
 LABEL maintainer="barcus@tou.nu"
 
