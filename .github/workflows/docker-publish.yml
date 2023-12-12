@@ -77,7 +77,7 @@ jobs:
         with:
           context: ./client
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bareos-fd:22.0.3
+          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bareos-fd:23.0.0
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -90,7 +90,7 @@ jobs:
         with:
           context: ./storage
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bareos-sd:22.0.3
+          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bareos-sd:23.0.0
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -103,7 +103,7 @@ jobs:
         with:
           context: ./director-pgsql
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bareos-dir:22.0.3
+          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bareos-dir:23.0.0
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -116,7 +116,7 @@ jobs:
         with:
           context: ./webui
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bareos-webui:22.0.3
+          tags: ${{ env.REGISTRY }}/${{ github.actor }}/bareos-webui:23.0.0
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
