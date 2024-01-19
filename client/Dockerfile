@@ -31,7 +31,7 @@ RUN apt update -qq \
  && echo "deb $BAREOS_REPO /" > /etc/apt/sources.list.d/bareos.list \
  && apt update -qq \
  && apt install -qq -y --no-install-recommends \
-    bareos-client mysql-client postgresql-client bareos-tools \
+    bareos-client=23.0.1~pre57.8e89bfe0a-40 mysql-client postgresql-client bareos-tools=23.0.1~pre57.8e89bfe0a-40 \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
