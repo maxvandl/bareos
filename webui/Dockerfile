@@ -9,7 +9,7 @@ RUN wget https://download.bareos.org/current/xUbuntu_22.04/add_bareos_repositori
 RUN chmod +x add_bareos_repositories.sh
 RUN ./add_bareos_repositories.sh
 RUN  apt update -y
-RUN apt install bareos-webui -y
+RUN apt install bareos-webui=23.0.1~pre57.8e89bfe0a-40 -y
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod u+x /docker-entrypoint.sh
 EXPOSE 80
