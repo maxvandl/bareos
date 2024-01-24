@@ -18,7 +18,7 @@ LABEL org.label-schema.schema-version="1.0" \
 ENV BAREOS_KEY https://download.bareos.org/current/xUbuntu_22.04/Release.key
 ENV BAREOS_REPO https://download.bareos.org/current/xUbuntu_22.04/
 ENV DEBIAN_FRONTEND noninteractive
-
+ENV TZ=UTC
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt update -qq \
@@ -27,8 +27,8 @@ RUN apt update -qq \
  && chmod +x add_bareos_repositories.sh && ./add_bareos_repositories.sh \
  && apt update -qq \
  && apt install -qq -y --no-install-recommends \
-    bareos-storage=23.0.1~pre57.8e89bfe0a-40 bareos-tools=23.0.1~pre57.8e89bfe0a-40 bareos-storage-tape=23.0.1~pre57.8e89bfe0a-40 mtx scsitools \
-    sg3-utils mt-st bareos-storage-droplet=23.0.1~pre57.8e89bfe0a-40 \
+    bareos-storage=23.0.2~pre16.6cb6b931e-45 bareos-tools=23.0.2~pre16.6cb6b931e-45 bareos-storage-tape=23.0.2~pre16.6cb6b931e-45 mtx scsitools \
+    sg3-utils mt-st bareos-storage-droplet=23.0.2~pre16.6cb6b931e-45 \
  && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
