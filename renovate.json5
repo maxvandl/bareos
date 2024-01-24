@@ -1,18 +1,18 @@
 {
-    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": ["config:base"],
-    "platform": "github",
-    "baseBranch": "main",
-    "packageRules": [
-      {
-        "packageNames": ["*"],
-        "automerge": false,
-        "schedule": ["on monday"]
-      }
-    ],
-    "depTypes": ["*"],
-    "separateMajorMinor": true
-  }
-  
-
-  
+  "extends": ["config:base"],
+  "docker": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "packageNames": ["bareos-storage-droplet", "bareos-tools"],
+      "updateTypes": ["minor", "patch"],
+      "versioning": "regex",
+      "matchStrings": [
+        "bareos-storage-droplet=(\\d+\\.\\d+\\.\\d+~pre\\d+\\.\\w+\\.\\w+-\\d+)",
+        "bareos-tools=(\\d+\\.\\d+\\.\\d+~pre\\d+\\.\\w+\\.\\w+-\\d+)"
+      ],
+      "matchUpdateTypes": ["pin"]
+    }
+  ]
+}
