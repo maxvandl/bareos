@@ -79,7 +79,7 @@ services:
   #     - ./data/bareos/data/webui:/usr/share/bareos-webui
 
   bareos-db:
-    image: postgres:12 #16.2
+    image: postgres:16 #16.2
     volumes:
       - ./data/pgsql/data:/var/lib/postgresql/data
     environment:
