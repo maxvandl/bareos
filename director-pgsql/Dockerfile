@@ -14,16 +14,19 @@ LABEL org.label-schema.schema-version="1.0" \
       org.label-schema.vcs-ref=$VCS_REF \
       org.label-schema.vcs-url="https://github.com/barcus/bareos" \
       org.label-schema.version=$VERSION
-
+ENV TZ="UTC"
 ENV DEBIAN_FRONTEND noninteractive
 ENV BAREOS_KEY https://download.bareos.org/current/xUbuntu_22.04/Release.key
 ENV BAREOS_REPO https://download.bareos.org/current/xUbuntu_22.04/
 ENV BAREOS_DPKG_CONF bareos-database-common bareos-database-common
 
+
+
+
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN apt update -qq \
- && apt -qq -y install --no-install-recommends curl tzdata gnupg ca-certificates\
+RUN apt-get update -qq \
+ && apt-get -qq -y install --no-install-recommends curl tzdata gnupg ca-certificates \
  && curl -Ls $BAREOS_KEY -o /tmp/bareos.key \
  && apt-key --keyring /etc/apt/trusted.gpg.d/breos-keyring.gpg \
     add /tmp/bareos.key \
@@ -38,10 +41,10 @@ RUN apt update -qq \
     | debconf-set-selections \
  && echo 'postfix postfix/main_mailer_type select No configuration' \
     | debconf-set-selections \
- && apt update -qq \
- && apt install -qq -y --no-install-recommends \
+ && apt-get update -qq \
+ && apt-get install -qq -y --no-install-recommends \
     bareos postgresql-client bareos-tools \
- && apt clean \
+ && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
 RUN tar czf /bareos-dir.tgz /etc/bareos

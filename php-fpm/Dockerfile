@@ -1,4 +1,4 @@
-FROM php:8.3-alpine
+FROM php:7.2-fpm-alpine
 
 ARG BUILD_DATE
 ARG VCS_REF
@@ -26,3 +26,4 @@ RUN chmod u+x /docker-entrypoint.sh
 EXPOSE 9000
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["/usr/bin/env", "php-fpm"]

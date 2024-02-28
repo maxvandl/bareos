@@ -422,10 +422,10 @@ Build your own Bareos images :
 ```bash
 git clone https://github.com/barcus/bareos
 cd bareos
-COMPOSE_DOCKER_CLI_BUILD=1 \
-DOCKER_BUILDKIT=1 \
-DOCKER_DEFAULT_PLATFORM=linux/amd64 \
-docker-compose build
+docker build -t director-pqsl:20-alpine director-pgsql/20-alpine
+docker build -t storage:20-alpine storage/20-alpine
+docker build -t client:20-alpine client/20-alpine
+docker build -t webui:20-alpine webui/20-alpine
 ```
 
 Build your own Xenial base system image :
