@@ -6,6 +6,11 @@
 
 ## About
 
+![Alt](https://repobeats.axiom.co/api/embed/96fd571b5d1da23f0a01269f5f1a73bcd7409d17.svg "Repobeats analytics image")
+
+
+
+
 This package provides images for [Bareos][bareos-href] :
 
 | module | build | size ubuntu | size alpine | pull |
