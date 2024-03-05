@@ -4,12 +4,12 @@
 ![Based OS][os-based-ubuntu] ![Based OS][os-based-alpine]
 ![Badge amd64][arch-amd64-img] ![Badge arm64][arch-arm64/v8-img]
 
-## About
 
+## Stats
 ![Alt](https://repobeats.axiom.co/api/embed/96fd571b5d1da23f0a01269f5f1a73bcd7409d17.svg "Repobeats analytics image")
 
 
-
+## About
 
 This package provides images for [Bareos][bareos-href] :
 
