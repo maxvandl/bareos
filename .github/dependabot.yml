@@ -13,3 +13,33 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+
+  - package-ecosystem: docker
+    directory: /api/21-alpine
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /client
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /director-pgsql
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /php-fpm
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /storage
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /webui
+    schedule:
+      interval: daily
