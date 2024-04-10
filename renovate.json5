@@ -6,7 +6,7 @@
     "packageRules": [
       {
         "packageNames": ["*"],
-        "automerge": false,
+        "automerge": true,
         "schedule": ["on monday"]
       }
     ],
