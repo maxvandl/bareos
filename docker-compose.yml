@@ -1,9 +1,9 @@
 ---
-version: '3.9'
 services:
   bareos-dir:
     build: ./director-pgsql/
-    image: bareos-dir:23.0.3
+
+    image: ghcr.io/maxvandl/bareos-dir:23.0.4
     volumes:
       - ./data/bareos/config/director:/etc/bareos
       - ./data/bareos/data/director:/var/lib/bareos # required for MyCatalog backup
@@ -35,19 +35,18 @@ services:
 
   bareos-sd:
     build: ./storage/
-    image: bareos-storage:23.0.3
+    image: ghcr.io/maxvandl/bareos-sd:23.0.4
     ports:
       - 9103:9103
     volumes:
       - ./data/bareos/config/storage:/etc/bareos
       - ./data/bareos/data/storage:/var/lib/bareos/storage
-      - /backup_20t/bareos:/var/lib/bareos/archive
-      - /backup_8t/bareos:/var/lib/bareos/storage
+
     environment:
       - BAREOS_SD_PASSWORD=${BAREOS_SD_PASSWORD} # defined in .env file
 
   bareos-fd:
-    image: bareos-client:23.0.3
+    image: ghcr.io/maxvandl/bareos-fd:23.0.4
     build: ./client/
     volumes:
       - ./data/bareos/config/client:/etc/bareos
@@ -60,7 +59,7 @@ services:
 
   bareos-webui:
     build: ./webui/
-    image: bareos-webui:23.0.3
+    image: ghcr.io/maxvandl/bareos-webui:23.0.4
     ports:
       - 8080:80
     environment:
