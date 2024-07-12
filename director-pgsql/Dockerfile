@@ -1,5 +1,6 @@
 # Bareos director Dockerfile
-FROM ubuntu:24.04@sha256:562456a05a0dbd62a671c1854868862a4687bf979a96d48ae8e766642cd911e8
+
+FROM ubuntu:24.04
 
 LABEL maintainer="barcus@tou.nu"
 
