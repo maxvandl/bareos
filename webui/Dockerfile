@@ -1,5 +1,6 @@
 # Use the official Ubuntu 22.04 base image
-FROM barcus/bareos-webui:latest@sha256:173ac30f9a065f5bb12648585ccd1a371868973f26c89bae121c608d2ea1dd5e
+
+FROM barcus/bareos-webui:latest
 
 # Update the package list and install required dependencies
 RUN rm -f /etc/apt/sources.list.d/bareos.list 
