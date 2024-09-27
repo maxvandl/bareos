@@ -81,7 +81,7 @@ jobs:
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image for client ${{ steps.meta.outputs.tags }}
         id: build-and-push-client
-        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 # v6.7.0
+        uses: docker/build-push-action@32945a339266b759abcbdc89316275140b0fc960 # v6.8.0
         with:
           context: ./client
           push: ${{ github.event_name != 'pull_request' }}
@@ -94,7 +94,7 @@ jobs:
 
       - name: Build and push Docker image for storage ${{ steps.meta.outputs.tags }}
         id: build-and-push-storage
-        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 # v6.7.0
+        uses: docker/build-push-action@32945a339266b759abcbdc89316275140b0fc960 # v6.8.0
         with:
           context: ./storage
           push: ${{ github.event_name != 'pull_request' }}
@@ -107,7 +107,7 @@ jobs:
 
       - name: Build and push Docker image for director-pgsql ${{ steps.meta.outputs.tags }}
         id: build-and-push-director-pgsql
-        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 # v6.7.0
+        uses: docker/build-push-action@32945a339266b759abcbdc89316275140b0fc960 # v6.8.0
         with:
           context: ./director-pgsql
           push: ${{ github.event_name != 'pull_request' }}
@@ -120,7 +120,7 @@ jobs:
 
       - name: Build and push Docker image for webui ${{ steps.meta.outputs.tags }}
         id: build-and-push-webui
-        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 # v6.7.0
+        uses: docker/build-push-action@32945a339266b759abcbdc89316275140b0fc960 # v6.8.0
         with:
           context: ./webui
           push: ${{ github.event_name != 'pull_request' }}
