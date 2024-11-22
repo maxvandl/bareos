@@ -1,4 +1,4 @@
-FROM php:8.3-fpm-alpine@sha256:8e5e771af8fbad68a6b761d075cd4f3267dbc9372fda5146ed350d8c2c84afeb
+FROM php:8.3-fpm-alpine@sha256:17fa7702b3d48eb0c064e3410474c81f703b3bcb7a7fe8073503e6c7f157a29a
 
 
 ARG BUILD_DATE
