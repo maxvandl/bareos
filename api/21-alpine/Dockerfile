@@ -1,5 +1,5 @@
 
-FROM python:3.12-alpine@sha256:c2f41e6a5a67bc39b95be3988dd19fbd05d1b82375c46d9826c592cca014d4de
+FROM python:3.12-alpine@sha256:fd340d298d9d537a33c859f03bcc60e8e2542968e16f998bb0e232e25b4b23bd
 
 
 LABEL maintainer="barcus@tou.nu"
