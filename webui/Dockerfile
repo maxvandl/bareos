@@ -42,16 +42,16 @@ CMD ["apache2ctl", "-D", "FOREGROUND"]
 # ENV TZ=Asia/Jerusalem
 # SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# RUN apt-get update -qq 
-# RUN apt-get -qq -y install --no-install-recommends curl tzdata gnupg ca-certificates
+# RUN apt update -qq 
+# RUN apt -qq -y install --no-install-recommends curl tzdata gnupg ca-certificates
 # RUN curl -Ls --insecure $BAREOS_KEY -o /tmp/bareos.key 
 # RUN apt-key --keyring /etc/apt/trusted.gpg.d/breos-keyring.gpg \
 #     add /tmp/bareos.key 
 # RUN echo "deb $BAREOS_REPO /" > /etc/apt/sources.list.d/bareos.list \
-#  && apt-get update -qq \
-#  && apt-get install -qq -y --no-install-recommends \
+#  && apt update -qq \
+#  && apt install -qq -y --no-install-recommends \
 #     bareos-webui \
-#  && apt-get clean \
+#  && apt clean \
 #  && rm -rf /var/lib/apt/lists/*
 
 # COPY docker-entrypoint.sh /docker-entrypoint.sh

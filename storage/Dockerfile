@@ -22,17 +22,17 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV TZ=UTC
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN apt-get update -qq \
- && apt-get -qq -y install --no-install-recommends curl tzdata gnupg ca-certificates
+RUN apt update -qq \
+ && apt -qq -y install --no-install-recommends curl tzdata gnupg ca-certificates
 RUN curl -Ls --insecure $BAREOS_KEY -o /tmp/bareos.key
 RUN cat /tmp/bareos.key
 RUN apt-key --keyring /etc/apt/trusted.gpg.d/breos-keyring.gpg add /tmp/bareos.key
 RUN echo "deb $BAREOS_REPO /" > /etc/apt/sources.list.d/bareos.list
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends \
+RUN apt update
+RUN apt install -y --no-install-recommends \
     bareos-storage bareos-tools bareos-storage-tape mtx scsitools \
     sg3-utils mt-st bareos-storage-droplet 
-RUN apt-get clean 
+RUN apt clean 
 RUN rm -rf /var/lib/apt/lists/*
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh

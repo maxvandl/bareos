@@ -1,9 +1,9 @@
 ---
-version: '3.9'
 services:
   bareos-dir:
     build: ./director-pgsql/
     image: bareos-dir:23.0.3
+    platform: linux/amd64
     volumes:
       - ./data/bareos/config/director:/etc/bareos
       - ./data/bareos/data/director:/var/lib/bareos # required for MyCatalog backup
@@ -36,19 +36,19 @@ services:
   bareos-sd:
     build: ./storage/
     image: bareos-storage:23.0.3
+    platform: linux/amd64
     ports:
       - 9103:9103
     volumes:
       - ./data/bareos/config/storage:/etc/bareos
       - ./data/bareos/data/storage:/var/lib/bareos/storage
-      - /backup_20t/bareos:/var/lib/bareos/archive
-      - /backup_8t/bareos:/var/lib/bareos/storage
     environment:
       - BAREOS_SD_PASSWORD=${BAREOS_SD_PASSWORD} # defined in .env file
 
   bareos-fd:
     image: bareos-client:23.0.3
     build: ./client/
+    platform: linux/amd64
     volumes:
       - ./data/bareos/config/client:/etc/bareos
       - ./data/bareos/data/director:/var/lib/bareos-director # required for MyCatalog backup
@@ -58,16 +58,17 @@ services:
       #- PUID=1500 # force bareos user ID
       #- PGID=1500 # force bareos group ID
 
-  bareos-webui:
-    build: ./webui/
-    image: bareos-webui:23.0.3
-    ports:
-      - 8080:80
-    environment:
-      - BAREOS_DIR_HOST=bareos-dir
-      - SERVER_STATS=yes
-    volumes:
-      - ./data/bareos/config/webui:/etc/bareos-webui
+  # bareos-webui:
+  #   build: ./webui/
+  #   image: bareos-webui:23.0.3
+  #   platform: linux/amd64
+  #   ports:
+  #     - 8080:80
+  #   environment:
+  #     - BAREOS_DIR_HOST=bareos-dir
+  #     - SERVER_STATS=yes
+  #   volumes:
+  #     - ./data/bareos/config/webui:/etc/bareos-webui
 
   # php-fpm:
   #   container_name: php-fpm
@@ -79,7 +80,8 @@ services:
   #     - ./data/bareos/data/webui:/usr/share/bareos-webui
 
   bareos-db:
-    image: postgres:17 #16.2
+    image: postgres:16 #16.2
+    platform: linux/amd64
     volumes:
       - ./data/pgsql/data:/var/lib/postgresql/data
     environment:

@@ -26,8 +26,8 @@ ENV BAREOS_DPKG_CONF bareos-database-common bareos-database-common
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN apt-get update -qq \
- && apt-get -qq -y install --no-install-recommends curl tzdata gnupg ca-certificates \
+RUN apt update -qq \
+ && apt -qq -y install --no-install-recommends curl tzdata gnupg ca-certificates \
  && curl -Ls $BAREOS_KEY -o /tmp/bareos.key \
  && apt-key --keyring /etc/apt/trusted.gpg.d/breos-keyring.gpg \
     add /tmp/bareos.key \
@@ -42,10 +42,10 @@ RUN apt-get update -qq \
     | debconf-set-selections \
  && echo 'postfix postfix/main_mailer_type select No configuration' \
     | debconf-set-selections \
- && apt-get update -qq \
- && apt-get install -qq -y --no-install-recommends \
+ && apt update -qq \
+ && apt install -qq -y --no-install-recommends \
     bareos postgresql-client bareos-tools \
- && apt-get clean \
+ && apt clean \
  && rm -rf /var/lib/apt/lists/*
 
 RUN tar czf /bareos-dir.tgz /etc/bareos
