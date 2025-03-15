@@ -3,6 +3,7 @@
 ![License badge][license-img]
 ![Based OS][os-based-ubuntu] ![Based OS][os-based-alpine]
 ![Badge amd64][arch-amd64-img] ![Badge arm64][arch-arm64/v8-img]
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmaxvandl%2Fbareos.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmaxvandl%2Fbareos?ref=badge_shield)
 
 
 ## Stats
@@ -510,3 +511,7 @@ Enjoy !
 [psql-upgrade-href]: https://github.com/barcus/postgresql-upgrade
 [bareos-exporter-href]: https://github.com/vierbergenlars/bareos_exporter
 [prometheus-href]: https://prometheus.io
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmaxvandl%2Fbareos.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmaxvandl%2Fbareos?ref=badge_large)
