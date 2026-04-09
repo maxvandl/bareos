@@ -1,4 +1,4 @@
-FROM python:3.14.3-alpine@sha256:faee120f7885a06fcc9677922331391fa690d911c020abb9e8025ff3d908e510
+FROM python:3.15.0a8-alpine@sha256:732a12f4ee05919cceddc786dd8dbfc82e0e9840432d02e382f2fbfb1d34744e
 
 LABEL maintainer="barcus@tou.nu"
 
