@@ -25,7 +25,7 @@ jobs:
           egress-policy: audit
 
       - name: Scan for vulnerabilities
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.30.0 (Trivy v0.34.0)
+        uses: aquasecurity/trivy-action@bfa4b33a029b9aa80ddb784b45574c30e072c59e # 0.30.0 (Trivy v0.34.0)
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           format: json
