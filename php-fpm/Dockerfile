@@ -1,4 +1,4 @@
-FROM php:8.5.7-fpm-alpine@sha256:bdc083e7b6acfb5eec64b5c85c134fe33cde8aa177da0d93fc46e43df2555b98
+FROM php:8.5.8-fpm-alpine@sha256:73695cf967618ebd8556ab65ad13d577bc5ba08dec34d72098d7aec1a071973c
 ARG BUILD_DATE
 ARG VCS_REF
 
