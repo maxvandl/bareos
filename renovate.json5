@@ -1,27 +1,28 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
-
   extends: [
-    'config:recommended'
+    'config:recommended',
   ],
-
   platform: 'github',
+  baseBranches: ['main'],
 
-  baseBranches: [
-    'main'
-  ],
+  // снимаем троттлинг — иначе Renovate создаёт по 2 PR в час, максимум 10 открытых
+  prHourlyLimit: 0,
+  prConcurrentLimit: 0,
+  branchConcurrentLimit: 0,
+  schedule: ['at any time'],
 
-  packageRules: [
-    {
-      matchPackageNames: ['*'],
-      automerge: true,
-      automergeType: 'pr'
-    }
-  ],
-
+  // автомерж
   automerge: true,
   automergeType: 'pr',
   platformAutomerge: true,
+  automergeStrategy: 'squash',
 
-  separateMajorMinor: true
+  packageRules: [
+    // мажоры лучше руками
+    {
+      matchUpdateTypes: ['major'],
+      automerge: false,
+    },
+  ],
 }
