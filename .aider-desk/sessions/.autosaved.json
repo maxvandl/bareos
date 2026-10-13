@@ -1,0 +1,18 @@
+{
+  "contextMessages": [
+    {
+      "id": "b23a9df6-2e9f-4dcf-a327-61d07ed7211b",
+      "role": "user",
+      "content": "review",
+      "promptContext": {
+        "id": "b23a9df6-2e9f-4dcf-a327-61d07ed7211b"
+      }
+    }
+  ],
+  "contextFiles": [
+    {
+      "path": "CONTRIBUTING.md",
+      "readOnly": false
+    }
+  ]
+}
