@@ -1,3 +1,6 @@
 local/
 .env
 data/*
+
+# Local AI assistant state
+.aider*

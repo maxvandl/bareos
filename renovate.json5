@@ -1,28 +1,82 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: [
-    'config:recommended',
+    'config:best-practices', // pins digests, groups monorepos, enables vulnerability alerts
+    ':semanticCommits',
   ],
   platform: 'github',
   baseBranches: ['main'],
+  timezone: 'Asia/Jerusalem',
+  schedule: ['before 6am'],
+  prHourlyLimit: 4,
+  prConcurrentLimit: 10,
 
-  // снимаем троттлинг — иначе Renovate создаёт по 2 PR в час, максимум 10 открытых
-  prHourlyLimit: 0,
-  prConcurrentLimit: 0,
-  branchConcurrentLimit: 0,
-  schedule: ['at any time'],
+  // Renovate is the only dependency bot (Dependabot was removed)
+  enabledManagers: [
+    'dockerfile',
+    'docker-compose',
+    'github-actions',
+    'pre-commit',
+    'custom.regex',
+  ],
 
-  // автомерж
+  // Keep digests fresh for pinned images (ubuntu:26.04@sha256..., postgres:18@sha256...)
+  pinDigests: true,
+
   automerge: true,
   automergeType: 'pr',
   platformAutomerge: true,
   automergeStrategy: 'squash',
 
   packageRules: [
-    // мажоры лучше руками
     {
+      // Majors by hand: Ubuntu release, PostgreSQL major (needs catalog migration), Bareos
       matchUpdateTypes: ['major'],
       automerge: false,
+    },
+    {
+      // Digest-only refreshes of pinned base images are low risk
+      matchUpdateTypes: ['digest', 'pin', 'pinDigest'],
+      automerge: true,
+      groupName: 'image digests',
+    },
+    {
+      matchManagers: ['github-actions'],
+      groupName: 'github actions',
+    },
+    {
+      // The ubuntu base tag is intentionally fixed per variant (24.04 LTS / 26.04);
+      // only its digest should move
+      matchDatasources: ['docker'],
+      matchPackageNames: ['ubuntu'],
+      matchUpdateTypes: ['major', 'minor'],
+      enabled: false,
+    },
+    {
+      // Bareos REST API follows the director major
+      matchPackageNames: ['bareos-restapi'],
+      matchUpdateTypes: ['major'],
+      enabled: false,
+    },
+  ],
+
+  customManagers: [
+    {
+      // ARG BAREOS_RESTAPI_VERSION=25.1.1 in api/Dockerfile
+      customType: 'regex',
+      managerFilePatterns: ['/^api/Dockerfile$/'],
+      matchStrings: ['ARG BAREOS_RESTAPI_VERSION=(?<currentValue>\\S+)'],
+      depNameTemplate: 'bareos-restapi',
+      datasourceTemplate: 'pypi',
+    },
+    {
+      // ARG PG_CLIENT_VERSION=18 must follow the postgres image major in docker-compose.yml
+      customType: 'regex',
+      managerFilePatterns: ['/Dockerfile$/'],
+      matchStrings: ['ARG PG_CLIENT_VERSION=(?<currentValue>\\d+)'],
+      depNameTemplate: 'postgres',
+      datasourceTemplate: 'docker',
+      versioningTemplate: 'regex:^(?<major>\\d+)$',
     },
   ],
 }

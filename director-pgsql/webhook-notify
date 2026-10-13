@@ -1,41 +1,39 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+# Send a Bareos job report to Slack or Telegram.
+# Usage: webhook-notify <type> <status> <client> <level> <job name>
+set -euo pipefail
 
-job_type=$1
-job_status=$2
-job_client=$3
-job_level=$4
-job_name=$5
+job_type=${1:-}
+job_status=${2:-}
+job_client=${3:-}
+job_level=${4:-}
+job_name=${5:-}
 msg_icon="❌"
 
-if [ "$job_status" = "OK" ] ;then
-  msg_icon="✅"
+if [ "$job_status" = "OK" ]; then
+	msg_icon="✅"
 fi
 
-msg_txt="$msg_icon Bareos: $job_type $job_status of $job_client \
-$job_level (${job_name})"
+msg_txt="$msg_icon Bareos: $job_type $job_status of $job_client $job_level (${job_name})"
 
-load_json()
-{
-  if [ "${WEBHOOK_TYPE}" = "slack" ] ; then
-    cat <<EOF
-{
-  "text": "$msg_txt"
-}
-EOF
- fi
+# jq escapes job names and other values safely
+case "${WEBHOOK_TYPE:-}" in
+slack)
+	payload=$(jq -n --arg text "$msg_txt" '{text: $text}')
+	;;
+telegram)
+	payload=$(jq -n --arg text "$msg_txt" --arg chat_id "${WEBHOOK_CHAT_ID:-}" \
+		'{chat_id: $chat_id, text: $text, disable_notification: false}')
+	;;
+*)
+	echo "webhook-notify: unsupported WEBHOOK_TYPE '${WEBHOOK_TYPE:-}'" >&2
+	exit 1
+	;;
+esac
 
- if [ "${WEBHOOK_TYPE}" = "telegram" ] ; then
-    cat <<EOF
-{
-  "chat_id": "${WEBHOOK_CHAT_ID}",
-  "text": "$msg_txt",
-  "disable_notification": false
-}
-EOF
- fi
-}
-
-/usr/bin/curl -s -k -X POST \
-    -H 'Content-Type: application/json' \
-    -d "$(load_json)" \
-    ${WEBHOOK_URL}
+curl --silent --show-error --fail --max-time 30 \
+	--proto '=https' \
+	-X POST \
+	-H 'Content-Type: application/json' \
+	--data "$payload" \
+	"${WEBHOOK_URL:?WEBHOOK_URL is not set}"

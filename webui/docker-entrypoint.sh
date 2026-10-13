@@ -1,54 +1,28 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-if [ ! -f /etc/bareos-webui/bareos-config.control ];then
+if [ ! -f /etc/bareos-webui/bareos-config.control ]; then
+	tar xzf /bareos-webui.tgz --backup=simple --suffix=.before-control
 
-  # Update bareos-webui config
-  sed -i 's#diraddress.*#diraddress = '\""${BAREOS_DIR_HOST}"\"'#' \
-    /etc/bareos-webui/directors.ini
+	# Update bareos-webui config
+	sed -i 's#diraddress.*#diraddress = '\""${BAREOS_DIR_HOST}"\"'#' \
+		/etc/bareos-webui/directors.ini
 
-  # Control file
-  touch /etc/bareos-webui/bareos-config.control
+	# Control file
+	touch /etc/bareos-webui/bareos-config.control
 fi
 
-apache_conf="/etc/apache2/sites-available/000-default.conf"
+# Run php-fpm and apache (Dockerfile CMD) side by side; if either exits the
+# container exits so the restart policy brings both back
+mkdir -p /run/php
+php-fpm --nodaemonize &
+"$@" &
 
-# Set document root
-sed -i "s#/var/www/html#/usr/share/bareos-webui/public#g" $apache_conf
-
-# # Enable Apache server stats
-# if [ "${SERVER_STATS}" == "yes" ]; then
-#   sed -i 's!#ServerName.*!Alias /server-status /var/www/dummy!' $apache_conf
-# fi
-
-# Run Dockerfile CMD
-exec "$@"
-
-
-
-
-
-# #!/usr/bin/env bash
-
-# if [ ! -f /etc/bareos-webui/bareos-config.control ];then
-#   tar xzf /bareos-webui.tgz --backup=simple --suffix=.before-control
-
-#   # Update bareos-webui config
-#   sed -i 's#diraddress.*#diraddress = '\""${BAREOS_DIR_HOST}"\"'#' \
-#     /etc/bareos-webui/directors.ini
-
-#   # Control file
-#   touch /etc/bareos-webui/bareos-config.control
-# fi
-
-# apache_conf="/etc/apache2/sites-available/000-default.conf"
-
-# # Set document root
-# sed -i "s#/var/www/html#/usr/share/bareos-webui/public#g" $apache_conf
-
-# # Enable Apache server stats
-# if [ "${SERVER_STATS}" == "yes" ]; then
-#   sed -i 's!#ServerName.*!Alias /server-status /var/www/dummy!' $apache_conf
-# fi
-
-# # Run Dockerfile CMD
-# exec "$@"
+mapfile -t pids < <(jobs -p)
+trap 'kill -TERM "${pids[@]}" 2>/dev/null' TERM INT
+set +e
+wait -n
+code=$?
+kill -TERM "${pids[@]}" 2>/dev/null
+wait
+exit "${code}"

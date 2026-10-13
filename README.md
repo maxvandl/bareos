@@ -1,517 +1,312 @@
 # bareos
 
 ![License badge][license-img]
-![Based OS][os-based-ubuntu] ![Based OS][os-based-alpine]
-![Badge amd64][arch-amd64-img] ![Badge arm64][arch-arm64/v8-img]
+![Based OS][os-based-ubuntu]
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmaxvandl%2Fbareos.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmaxvandl%2Fbareos?ref=badge_shield)
 
+Docker images and a docker-compose stack for [Bareos][bareos-href] 25
+(director, storage daemon, file daemon, web UI, REST API) with a PostgreSQL
+catalog and a Postfix relay for job reports.
 
-## Stats
-![Alt](https://repobeats.axiom.co/api/embed/96fd571b5d1da23f0a01269f5f1a73bcd7409d17.svg "Repobeats analytics image")
+## Stack
 
+| Service        | Build context      | Purpose                             | Published port         |
+| -------------- | ------------------ | ----------------------------------- | ---------------------- |
+| `bareos-dir`   | `./director-pgsql` | Bareos director                     | none (9101 internal)   |
+| `bareos-sd`    | `./storage`        | Storage daemon, volumes on disk     | `${SD_BIND}:9103`      |
+| `bareos-fd`    | `./client`         | File daemon (also backs up catalog) | none (9102 internal)   |
+| `bareos-webui` | `./webui`          | Web UI (Apache + PHP-FPM)           | `${WEBUI_BIND}:8080`   |
+| `bareos-db`    | `postgres:18`      | Catalog database                    | none, internal network |
+| `smtpd`        | `./smtpd`          | Postfix relay for job reports       | none (8025 internal)   |
+| `bareos-api`   | `./api`            | REST API                            | `127.0.0.1:8000`       |
+| `bareos-exporter` | `vierbergenlars/bareos_exporter` | Prometheus metrics       | `127.0.0.1:9625`       |
 
-## About
+### Image variants
 
-This package provides images for [Bareos][bareos-href] :
+Every image is built from Ubuntu in two flavours, selected with the
+`UBUNTU_VERSION` build argument (`.env` → `UBUNTU_VERSION`):
 
-| module | build | size ubuntu | size alpine | pull |
-|:-------------------:|:------------------------------------------------------------:|:---------------------------------------:|:---------------------------------------:|:-------------------------------------------------:|
-| Director | [![Actions Status][build-director-img]][build-director-href] | ![Size badge][size-latest-director-png] | ![Size badge][size-alpine-director-png] | [![Docker badge][docker-img-dir]][docker-url-dir] |
-| Storage Daemon | [![Actions Status][build-storage-img]][build-storage-href] | ![Size badge][size-latest-storage-png] | ![Size badge][size-alpine-storage-png] | [![Docker badge][docker-img-sd]][docker-url-sd] |
-| Client/File Daemon | [![Actions Status][build-client-img]][build-client-href] | ![Size badge][size-latest-client-png] | ![Size badge][size-alpine-client-png] | [![Docker badge][docker-img-fd]][docker-url-fd] |
-| webUI | [![Actions Status][build-webui-img]][build-webui-href] | ![Size badge][size-latest-webui-png] | ![Size badge][size-alpine-webui-png] | [![Docker badge][docker-img-ui]][docker-url-ui] |
-| API | [![Actions Status][build-api-img]][build-api-href] | ![Size badge][size-latest-api-png] | | [![Docker badge][docker-img-api]][docker-url-api] |
+| Variant          | Base image     | Note                                      |
+| ---------------- | -------------- | ----------------------------------------- |
+| `*-ubuntu26.04`  | `ubuntu:26.04` | Latest release, default, also tagged bare |
+| `*-ubuntu24.04`  | `ubuntu:24.04` | Previous LTS                              |
 
-Images are based on **Ubuntu** or **Alpine**, check tags below
+Bareos packages come from the official repository
+`download.bareos.org/current/xUbuntu_<version>` (stable branch; amd64 only).
+The PostgreSQL client in the director and file daemon images comes from
+`apt.postgresql.org` and matches the catalog server major (`PG_CLIENT_VERSION`,
+default `18`) so `pg_dump` for the catalog backup is compatible.
 
-:+1: Tested with Bareos 16.x.x to 21.0.0
+To build against the Bareos subscription repository instead:
 
-:warning:
-
-* MySQL/MariaDB backend deprecated since Bareos 20.0.0 (available for old DB only)
-* MySQL/MariaDB backend not available since Bareos 21.0.0
-* SQLite backend deprecated since Bareos 20.0.0
-
-* Ubuntu images for Bareos 16 and 17 are based on **Xenial** (deprecated)
-* Ubuntu images for Bareos 18 and 19 are based on **Bionic** (no more updated)
-* Ubuntu images for Bareos 20 and 21 are based on **Focal**
-* Alpine images are available for **linux/amd64** and **linux/arm64/v8** platform
-* Weekly build are deployed to [Docker hub][docker-url] on Sunday 4am (GMT+1)
-
-## Tags
-
-bareos-director (dir)
-
-* `nightly`
-* `21-ubuntu-pgsql`, `21-ubuntu`, `21`, `ubuntu`, `latest`
-* `20-ubuntu-pgsql`, `20-ubuntu`, `20`
-* `20-ubuntu-mysql`
-* `20-alpine-pgsql`, `20-alpine`, `alpine`
-
-:warning: Deprecated images
-
-* `19-ubuntu-mysql`, `19-ubuntu`, `19`
-* `19-ubuntu-pgsql`
-* `19-alpine-mysql`, `19-alpine`
-* `19-alpine-pgsql`
-* `18-ubuntu-mysql`, `18-ubuntu`, `18`
-* `18-ubuntu-pgsql`
-* `18-alpine-mysql`, `18-alpine`
-* `17-ubuntu-mysql`, `17-ubuntu`, `17`
-* `17-ubuntu-pgsql`
-* `17-alpine`
-* `16-ubuntu-mysql`, `16-ubuntu`, `16`
-* `16-ubuntu-pgsql`
-
-bareos-client (fd) - bareos-storage (sd) - bareos-webui
-
-* `nightly`
-* `21-ubuntu`, `21`, `ubuntu`, `latest`
-* `20-ubuntu`, `20`
-* `20-alpine`, `alpine`
-
-:warning: Deprecated images
-
-* `19-ubuntu`, `19`
-* `19-alpine`
-* `18-ubuntu`, `18`
-* `18-alpine`
-* `17-ubuntu`, `17`
-* `17-alpine`
-* `16-ubuntu`, `16`
-
-bareos-api
-
-* `21-alpine`, `21`, `alpine`, `latest`
-
-## Security advice
-
-The default passwords inside the configuration files are created when building
-the docker image. Hence for production either build the image yourself using
-the sources from Github.
-
-:o: Do not use this container for anything else, as passwords get expose to
-the Bareos containers.
-
-## Setup
-
-Bareos Director requires :
-
-* PostgreSQL or MySQL as a catalog backend (MySQL deprecated since Bareos 19.0.0)
-* SMTP Daemon as mail router (for reporting)
-
-Bareos Webui requires (Alpine images only) :
-
-* PHP-FPM
-
-Bareos Client (fd) and Storage (sd) have no dependencies.
-
-Each component have to run in an single container and must linked together
-through docker-compose, see example below
+```bash
+printf 'machine download.bareos.com login <user> password <token>\n' > auth.conf
+docker compose build \
+  --build-arg BAREOS_REPO=https://download.bareos.com/bareos/release/25/xUbuntu_26.04/ \
+  --secret id=bareos_auth,src=auth.conf
+```
 
 ## Requirements
 
-* [Docker][docker-href] & [docker-compose][docker-compose-href]
+- [Docker][docker-href] with [Compose v2][docker-compose-href]
+- On Apple Silicon: director, storage and client run as `linux/amd64` under
+  emulation (Bareos ships amd64 packages only). Web UI, API, Postfix and
+  PostgreSQL run natively. Enabling _Use Rosetta for x86_64/amd64 emulation_
+  in Docker Desktop makes emulated containers faster and more stable.
 
-## Usage
-
-### Define ENV variables required
-
-Declare environment variables or copy the `.env.dist` to `.env` and adjust its
-values.
-
-Remember that all passwords should be defined inside this `.env` file.
-It's recommanded to not use default passwords in `.env.dist` for production
-usage.
-
-Finaly, be sure to update variables in docker-compose file like
-`ADMIN_MAIL` or `DB_USER`
-
-### Run docker-compose
+## Quick start
 
 ```bash
-docker-compose -f /path/to/your/docker-compose.yml up -d
+cp .env.dist .env
+# replace every "changeme" and set ADMIN_MAIL, e.g.:
+#   openssl rand -hex 24
+docker compose build
+docker compose up -d
 ```
 
-docker-compose files are available for Alpine and Ubuntu based stack:
-
-| file | compose | docker | latest build |
-|:-----------------------------------------:|:-------:|:---------:|:-------------------------------:|
-| [alpine-v1/mysql][compose-alpinev1-href] | v3+ | v1.13.0+ | ![run-compose][run-compose-png] |
-| [alpine-v2/mysql][compose-alpinev2-href] | v3.7+ | v18.06.0+ | ![run-compose][run-compose-png] |
-| [ubuntu/mysql][compose-ubuntu-mysql-href] | v3+ | v1.13.0+ | ![run-compose][run-compose-png] |
-| [ubuntu/pgsql][compose-ubuntu-pgsql-href] | v3+ | v1.13.0+ | ![run-compose][run-compose-png] |
-
-:file_folder: Those docker-compose file are configured to store data inside
-`/data/(bareos|mysql|pgsql)`
-
-Finally, when your containers are up and running access Bareos using WebUI, CLI or API
-
-### Access WebUI
-
-Open `http://your-docker-host:8080` in your web browser then sign-in
-
-(user: admin / pass: `<BAREOS_WEBUI_PASSWORD>`)
-
-### Access bconsole
-
-```bash
-docker exec -it bareos-dir bconsole
-```
-
-### Access API
-
-(Required Bareos 20+ and Bareos named console)
-
-Open `http://your-docker-host:8000/docs` in your web browser then click
-'Authorize' to sign-in.
-
-Or use curl as example below:
-
-Get token: (should return json object with token inside)
-
-```bash
-curl -X 'POST' \
-  'http://your-docker-host:8000/token' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'grant_type=&username=admin&password=ThisIsMySecretUIp4ssw0rd&scope=&client_id=&client_secret='
-```
-
-As you can see it uses credentials of Bareos-webui admin user which is
-configure as a named console in Bareos-director.
-
-Result:
-
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTY0NzIxMDM3NX0.alKiLsgMrovKVX6fdcUqkhG_9lsJNiOBQ6X7ixyziGw",
-  "token_type": "bearer"
-}
-```
-
-Then, use this token for example to read all clients configuration (like in bconsole)
-
-```bash
-curl -X 'GET' \
-  'http://your-docker-host:8000/configuration/clients?verbose=yes' \
-  -H 'accept: application/json' \
-  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTY0NzIxMDM3NX0.alKiLsgMrovKVX6fdcUqkhG_9lsJNiOBQ6X7ixyziGw'
-```
-
-Should return a JSON file with all clients configuration.
-
-### Access metrics for Prometheus
-
-Open `http://your-docker-host:9625/metrics` in your web browser to display
-metrics available.
-
-More information about [Bareos exporter][bareos-exporter-href]. Thank you to @vierbergenlars
-
-Metrics should be scraped by [Prometheus][prometheus-href] server.
-
-### Official documentation
-
-More information about Bareos configuration and usage in the [official documantion][bareos-doc]
-
-## Database migration (MySQL to PostgreSQL)
-
-Since Bareos Version >= 21.0.0 the MySQL database backend is not shipped
-anymore. Therefore you need to use Bareos 20 to migrate an existing MySQL
-Bareos Catalog to PostgreSQL. To do so, upgrade to Bareos 20 first and then
-use [this docker-compose file][compose-db-migration-href] to backup
-(optional) the whole Bareos MySQL catalog and copy it into a new PostgreSQL
+On the first start the containers generate their configuration in
+`./data/bareos/config/*`, substitute the passwords from `.env`, rotate every
+password the Bareos packages generated at build time, point job reports and
+the `BackupCatalog` bootstrap mail at the relay, and the director creates the
 catalog database.
 
-If PostgreSQL database is empty or does not exist, it will be created.
-
-:warning: Don't forget `.env` file with passwords required!
-
-## PostgreSQL database upgrade
-
-### Compatibility
-
-At this moment, latest Ubuntu based images are compliant with PostgreSQL 12 or
-less and Alpine ones with PostgreSQL 14. This is due to the version of `pg_dump`
-which is required to dump Bareos database.
-
-Ubuntu images:
-
-* Bareos v19 -> PostgreSQL v10 or less
-* Bareos v20+ -> PostgreSQL v12 or less
-
-Alpine images:
-
-* Bareos v19 -> PostgreSQL v13 or less
-* Bareos v20+ -> PostgreSQL v14 or less
-
-### Tool
-
-The main idea here is to use [postgresql-upgrade][psql-upgrade-href] Docker
-image. It will create a new PostgreSQL instance and then use `pg_upgrade`
-tool to move all databases from the old instance to the new one.
-
-To proceed, locate your PostgreSQL data folder, according our own docker
-compose files it could be /data/pgsql/data ! Then identify user used to init
-the instance. postgres ? pgsql ? root ?
-
-Let's try an exemple with data source `/data/pgsql/data` and postgres
-as an admin user.
-
-Finaly run:
+Check that everything is running:
 
 ```bash
-docker run -t -i \
-  -e PG_NEW=12 \
-  -e PGUSER=postgres \
-  -v /data/pgsql/data:/pg_old/data \
-  -v /data/pgsql-new/data:/pg_new/data \
-  barcus/postgresql-upgrade
+docker compose ps          # all services should be "healthy"
+printf 'status client=bareos-fd\nstatus storage=File\n' \
+  | docker compose exec -T bareos-dir bconsole
 ```
 
-After sucessful migration, use the new folder `/data/pgsql-new/data` and the
-PostgreSQL version related in your docker-compose file.
+## Configuration (`.env`)
 
-## Build
+Passwords must contain only `[A-Za-z0-9]`: entrypoints substitute them with
+`sed`, so characters like `#`, `'`, `"`, `&`, `\` break the configuration.
 
-### Docker-compose file
+Passwords are handed to the containers as [compose secrets][compose-secrets]
+sourced from `.env` (`secrets: … environment: DB_PASSWORD`) and mounted under
+`/run/secrets/`; the entrypoints read `*_FILE` variables and remove every
+secret from the environment before starting the daemon. Only
+`bareos-exporter` keeps `DB_PASSWORD` in its environment (the image supports
+nothing else) and `WEBHOOK_URL` stays in the director's environment because
+`webhook-notify` runs as its child.
 
-Build your own docker-compose file with this template :
+| Variable                | Required | Description                                                       |
+| ----------------------- | :------: | ----------------------------------------------------------------- |
+| `UBUNTU_VERSION`        |          | Image variant: `26.04` (default) or `24.04`                       |
+| `DB_ADMIN_USER`         |   yes    | PostgreSQL superuser, used to create the catalog                  |
+| `DB_ADMIN_PASSWORD`     |   yes    | PostgreSQL superuser password                                     |
+| `DB_NAME`               |          | Catalog database name (default `bareos`)                          |
+| `DB_USER`               |          | Catalog database user (default `bareos`)                          |
+| `DB_PASSWORD`           |   yes    | Catalog database user password                                    |
+| `BAREOS_DIR_PASSWORD`   |          | Director console (`bconsole`) password; random when empty         |
+| `BAREOS_SD_PASSWORD`    |   yes    | Director ↔ storage daemon password                                |
+| `BAREOS_FD_PASSWORD`    |   yes    | Director ↔ file daemon password                                   |
+| `BAREOS_WEBUI_PASSWORD` |   yes    | Password of the `admin` web UI console                            |
+| `ADMIN_MAIL`            |   yes    | Recipient of job reports                                          |
+| `SENDER_MAIL`           |          | Sender address of job reports                                     |
+| `SMTP_HELO_NAME`        |          | Hostname the relay announces (default `bareos.local`)             |
+| `SMTP_SMARTHOST`        |          | Upstream SMTP `host:port`, e.g. `smtp.example.com:587`            |
+| `SMTP_USERNAME`         |          | Smarthost login (enables SASL auth)                               |
+| `SMTP_PASSWORD`         |          | Smarthost password                                                |
+| `WEBHOOK_NOTIFICATION`  |          | `true` sends reports to Slack/Telegram instead of mail            |
+| `WEBHOOK_TYPE`          |          | `slack` or `telegram`                                             |
+| `WEBHOOK_URL`           |          | Slack webhook URL or Telegram bot API URL (HTTPS only)            |
+| `WEBHOOK_CHAT_ID`       |          | Telegram chat id                                                  |
+| `BAREOS_API_SECRET`     |          | JWT signing key of the REST API; random per start when empty      |
+| `SD_BIND`               |          | Bind address for port 9103 (default `127.0.0.1`)                  |
+| `WEBUI_BIND`            |          | Bind address for port 8080 (default `127.0.0.1`)                  |
 
-```yml
-version: '3'
-services:
-  bareos-dir:
-    image: barcus/bareos-director:latest #latest director-pgsql based on ubuntu
-    volumes:
-      - <BAREOS_CONF_PATH>:/etc/bareos
-      - <BAREOS_DATA_PATH>:/var/lib/bareos #required for MyCatalog backup
-    environment:
-      - DB_INIT=false
-      - DB_UPDATE=false
-      - DB_HOST=bareos-db
-      - DB_PORT=3306
-      - DB_NAME=bareos
-      - DB_USER=bareos
-      - DB_PASSWORD=${DB_PASSWORD} # defined in .env file
-      - DB_ADMIN_USER=${DB_ADMIN_USER} # defined in .env file
-      - DB_ADMIN_PASSWORD=${DB_ADMIN_PASSWORD} # defined in .env file
-      - BAREOS_FD_HOST=bareos-fd
-      - BAREOS_FD_PASSWORD=${BAREOS_FD_PASSWORD} # defined in .env file
-      - BAREOS_SD_HOST=bareos-sd
-      - BAREOS_SD_PASSWORD=${BAREOS_SD_PASSWORD} # defined in .env file
-      - BAREOS_WEBUI_PASSWORD=${BAREOS_WEBUI_PASSWORD} # defined in .env file
-      - SMTP_HOST=smtpd
-      - SENDER_MAIL=your-sender@mail.address #optional
-      - ADMIN_MAIL=your@mail.address # Change me!
-      # Optional you can get backup notification via Slack or Telegram
-      - WEBHOOK_NOTIFICATION=true # true or false if set to true email notification gets disabled
-      - WEBHOOK_TYPE=slack # choose slack or telegram
-      - WEBHOOK_URL= # set the slack or telegram URL
-      - WEBHOOK_CHAT_ID= # for telegram only set the <chat_id>
-    depends_on:
-      - bareos-db
+Without `SMTP_SMARTHOST` Postfix delivers mail directly, which requires
+outbound port 25 to be open. With a smarthost TLS is mandatory
+(`smtp_tls_security_level=encrypt`); port 465 switches to implicit TLS.
 
-  bareos-sd:
-    image: barcus/bareos-storage:latest
-    ports:
-      - 9103:9103
-    volumes:
-      - <BAREOS_CONF_PATH>:/etc/bareos
-      - <BAREOS_BKP_VOLUME_PATH>:/var/lib/bareos/storage
-    environment:
-      - BAREOS_SD_PASSWORD=${BAREOS_SD_PASSWORD} # defined in .env file
-
-  bareos-fd:
-    image: barcus/bareos-client:latest
-    volumes:
-      - <BAREOS_CONF_PATH>:/etc/bareos
-      - <BAREOS_DATA_PATH>:/var/lib/bareos-director #required for MyCatalog backup
-    environment:
-      - BAREOS_FD_PASSWORD=${BAREOS_FD_PASSWORD} # defined in .env file
-      - FORCE_ROOT=false
-
-  bareos-webui:
-    image: barcus/bareos-webui:latest
-    ports:
-      - 8080:80
-    environment:
-      - BAREOS_DIR_HOST=bareos-dir
-      - SERVER_STATS=yes #optional enable apache server statistics
-    volumes:
-      - <BAREOS_CONF_PATH>:/etc/bareos-webui
-
-  #bareos-db:
-  #  image: mysql:5.6
-  #  volumes:
-  #    - <DB_DATA_PATH>:/var/lib/mysql
-  #  environment:
-  #    - MYSQL_ROOT_PASSWORD=${DB_ADMIN_PASSWORD} # defined in .env file
-
-  bareos-db:
-    image: postgres:12
-    volumes:
-      - <DB_DATA_PATH>:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=${DB_ADMIN_USER} # defined in .env file
-      - POSTGRES_PASSWORD=${DB_ADMIN_PASSWORD} # defined in .env file
-      - POSTGRES_INITDB_ARGS=--encoding=SQL_ASCII
-
-  bareos-api:
-    image: barcus/bareos-api:21
-    ports:
-    - 8000:8000
-    environment:
-    - BAREOS_DIR_HOST=bareos-dir
-
-  smtpd:
-    image: namshi/smtp
-```
-
-**Bareos Director** (bareos-dir)
-
-* `<BAREOS_CONF_PATH>` is the path to share your Director config folder from
- the host side (optional/recommended)
-* `<BAREOS_DATA_PATH>` is the path to share your Director data folder from
- the host side (recommended)
-* DB_NAME is the bareos database name
-* DB_USER is the bareos database user
-* DB_PASSWORD is the password use to access to the bareos database
-* DB_ADMIN_USER is the password use to initialize bareos user and database
-* DB_ADMIN_PASSWORD is the password use to access to database system
-* SMTP_HOST is the name of smtp container
-* ADMIN_MAIL is your email address
-* SENDER_MAIL is the email address you want to use for send the email
- (optional, default ADMIN_MAIL value)
-* WEBHOOK_NOTIFICATION=true # true or false if set to true email notification gets disabled
-* WEBHOOK_TYPE=slack # choose slack or telegram
-* WEBHOOK_URL= # set the slack or telegram URL (ex slack: <https://hooks.slack.com/services/TXXXXXXXXXX/XXXXXXXXXXX/Cbzi0lUVjKsjiM6kjZL2eQAW>)
-* WEBHOOK_CHAT_ID= # for telegram only set the 'chat_id'
-
-**Bareos Storage Daemon** (bareos-sd)
-
-* `<BAREOS_CONF_PATH>` is the path to share your Storage config folder from
- the host side (optional/recommended)
-* `<BAREOS_BKP_VOLUME_PATH>` is the path to share your data folder from the
- host side. (optional)
-* BAREOS_SD_PASSWORD must be same as Bareos Director section
-
-**Bareos Client/File Daemon** (bareos-fd)
-
-* `<BAREOS_CONF_PATH>` is the path to share your Client config folder from the
- host side (optional/recommended)
-* `<BAREOS_DATA_PATH>` is the path to access Director data folder (recommended)
-* BAREOS_FD_PASSWORD must be same as Bareos Director section
-* FORCE_ROOT must be true to run Bareos with root permissions
-
-**Database MySQL or PostgreSQL** (bareos-db)
-
-Required as catalog backend, simply use the official MySQL/PostgreSQL image
-
-* `<DB_DATA_PATH>` is the path to share your MySQL/PostgreSQL data from the host
- side
-* MYSQL_ROOT_PASSWORD is the password for MySQL root user (required for DB init only)
-* POSTGRES_PASSWORD is the password for PostgreSQL root user (required for DB init only)
-
-**Bareos webUI** (bareos-webui)
-
-* `<BAREOS_CONF_PATH>` is the path to share your WebUI config folder from the
- host side. (optional)
-* default user is `admin`
-
-:warning: Remember variables `*_HOST` must be set with container name
-
-### Your own Docker images
-
-Build your own Bareos images :
+:warning: Passwords, mail and webhook settings are applied **only on the first
+start**, while `./data/bareos/config/<service>/bareos-config.control` does not
+exist. To apply new values, stop the stack and remove the configuration
+(back it up first if it contains your own jobs):
 
 ```bash
-git clone https://github.com/barcus/bareos
-cd bareos
-docker build -t director-pqsl:20-alpine director-pgsql/20-alpine
-docker build -t storage:20-alpine storage/20-alpine
-docker build -t client:20-alpine client/20-alpine
-docker build -t webui:20-alpine webui/20-alpine
+docker compose down
+rm -rf data/bareos/config/*
+docker compose up -d
 ```
 
-Build your own Xenial base system image :
+The catalog database is initialized by the director when
+`data/bareos/config/director/bareos-db.control` is missing. The step is
+idempotent: an existing role gets its password synced from `.env`, an
+existing database is kept, privileges are re-granted. Resetting
+`data/bareos/config` therefore does not require resetting `data/pgsql`, and a
+changed `DB_PASSWORD` is applied on the next first start.
+
+## Access
+
+### Web UI
+
+Open <http://localhost:8080> (redirects to `/bareos-webui/`) and sign in as
+`admin` with `BAREOS_WEBUI_PASSWORD`.
+
+### bconsole
 
 ```bash
-git clone https://github.com/rockyluke/docker-ubuntu
-cd docker-ubuntu
-./build.sh -d xenial
+docker compose exec bareos-dir bconsole
 ```
 
-Thanks to @rockyluke :)
+The console password is `BAREOS_DIR_PASSWORD` or, when it was left empty, the
+random value written to `data/bareos/config/director/bconsole.conf`.
 
-## Links
+### REST API
 
-For more information visit the Github repositories :
+Open <http://localhost:8000/docs> (the root `/` answers `404`, only `/docs`,
+`/redoc` and the API routes exist). It authenticates with the web UI console
+credentials (`admin` / `BAREOS_WEBUI_PASSWORD`). Set `BAREOS_API_SECRET` to
+keep JWT tokens valid across restarts.
 
-* [bareos-director-mysql](https://github.com/barcus/bareos/tree/master/director-mysql)
-* [bareos-director-pgsql](https://github.com/barcus/bareos/tree/master/director-pgsql)
-* [bareos-storage](https://github.com/barcus/bareos/tree/master/storage)
-* [bareos-client](https://github.com/barcus/bareos/tree/master/client)
-* [bareos-webui](https://github.com/barcus/bareos/tree/master/webui)
-* [docker-ubuntu](https://github.com/rockyluke/docker-ubuntu)
+### Prometheus metrics
 
-My Docker hub :
+<http://localhost:9625/metrics>, exported by
+[bareos_exporter][bareos-exporter-href] from the catalog database.
 
-* [docker images](https://hub.docker.com/r/barcus)
+### Backing up host paths
 
-Enjoy !
+By default `bareos-fd` runs as the unprivileged `bareos` user and only backs
+up what that user can read (the catalog dump and `/etc/bareos`). To back up
+host directories, mount them read-only into `bareos-fd`, set
+`FORCE_ROOT=true` and add `DAC_READ_SEARCH` to its `cap_add`, then create a
+fileset for the mounted paths.
 
-[arch-amd64-img]: https://img.shields.io/badge/arch-amd64-inactive
-[arch-arm64/v8-img]: https://img.shields.io/badge/arch-arm64/v8-inactive
-[bareos-href]: https://www.bareos.org
-[bareos-doc]: https://www.bareos.com/learn/documentation
-[build-client-href]: https://github.com/barcus/bareos/actions?query=workflow%3Aci-client
-[build-client-img]: https://github.com/barcus/bareos/workflows/ci-client/badge.svg
-[build-director-href]: https://github.com/barcus/bareos/actions?query=workflow%3Aci-director
-[build-director-img]: https://github.com/barcus/bareos/workflows/ci-director/badge.svg
-[build-img]: https://travis-ci.org/barcus/bareos.svg?branch=master
-[build-storage-href]: https://github.com/barcus/bareos/actions?query=workflow%3Aci-storage
-[build-storage-img]: https://github.com/barcus/bareos/workflows/ci-storage/badge.svg
-[build-url]: https://travis-ci.org/barcus/bareos
-[build-webui-href]: https://github.com/barcus/bareos/actions?query=workflow%3Aci-webui
-[build-webui-img]: https://github.com/barcus/bareos/workflows/ci-webui/badge.svg
-[build-api-href]: https://github.com/barcus/bareos/actions?query=workflow%3Aci-api
-[build-api-img]: https://github.com/barcus/bareos/workflows/ci-api/badge.svg
-[compose-alpinev1-href]: https://github.com/barcus/bareos/blob/master/docker-compose-alpine-v1.yml
-[compose-alpinev2-href]: https://github.com/barcus/bareos/blob/master/docker-compose-alpine-v2.yml
-[compose-ubuntu-mysql-href]: https://github.com/barcus/bareos/blob/master/docker-compose-ubuntu-mysql.yml
-[compose-ubuntu-pgsql-href]: https://github.com/barcus/bareos/blob/master/docker-compose-ubuntu-pgsql.yml
-[compose-db-migration-href]: https://github.com/barcus/bareos/blob/master/bareos-db-migration/docker-compose.yml
-[docker-compose-href]: https://docs.docker.com/compose
-[docker-href]: https://docs.docker.com/install
-[docker-img-dir]: https://img.shields.io/docker/pulls/barcus/bareos-director?label=bareos-director&logo=docker
-[docker-img-fd]: https://img.shields.io/docker/pulls/barcus/bareos-client?label=bareos-client&logo=docker
-[docker-img-sd]: https://img.shields.io/docker/pulls/barcus/bareos-storage?label=bareos-storage&logo=docker
-[docker-img-ui]: https://img.shields.io/docker/pulls/barcus/bareos-webui?label=bareos-webui&logo=docker
-[docker-img-api]: https://img.shields.io/docker/pulls/barcus/bareos-api?label=bareos-api&logo=docker
-[docker-url]: https://registry.hub.docker.com/r/barcus
-[docker-url-dir]: https://registry.hub.docker.com/r/barcus/bareos-director
-[docker-url-fd]: https://registry.hub.docker.com/r/barcus/bareos-client
-[docker-url-sd]: https://registry.hub.docker.com/r/barcus/bareos-storage
-[docker-url-ui]: https://registry.hub.docker.com/r/barcus/bareos-webui
-[docker-url-api]: https://registry.hub.docker.com/r/barcus/bareos-api
-[license-img]: https://img.shields.io/badge/License-MIT-yellow.svg
-[os-based-alpine]: https://img.shields.io/badge/os-alpine-9cf
-[os-based-ubuntu]: https://img.shields.io/badge/os-ubuntu-9cf
-[size-alpine-client-png]: https://img.shields.io/docker/image-size/barcus/bareos-client/alpine?label=alpine&style=plastic
-[size-alpine-director-png]: https://img.shields.io/docker/image-size/barcus/bareos-director/alpine?label=alpine&style=plastic
-[size-alpine-storage-png]: https://img.shields.io/docker/image-size/barcus/bareos-storage/alpine?label=alpine&style=plastic
-[size-alpine-webui-png]: https://img.shields.io/docker/image-size/barcus/bareos-webui/alpine?label=alpine&style=plastic
-[size-latest-client-png]: https://img.shields.io/docker/image-size/barcus/bareos-client/latest?label=latest&style=plastic
-[size-latest-director-png]: https://img.shields.io/docker/image-size/barcus/bareos-director/latest?label=latest&style=plastic
-[size-latest-storage-png]: https://img.shields.io/docker/image-size/barcus/bareos-storage/latest?label=latest&style=plastic
-[size-latest-webui-png]: https://img.shields.io/docker/image-size/barcus/bareos-webui/latest?label=latest&style=plastic
-[size-latest-api-png]: https://img.shields.io/docker/image-size/barcus/bareos-api/latest?label=latest&style=plastic
-[run-compose-png]: https://github.com/barcus/bareos/workflows/run-compose/badge.svg
-[psql-upgrade-href]: https://github.com/barcus/postgresql-upgrade
-[bareos-exporter-href]: https://github.com/vierbergenlars/bareos_exporter
-[prometheus-href]: https://prometheus.io
+## Data layout
 
+| Path                          | Content                                      |
+| ----------------------------- | -------------------------------------------- |
+| `data/bareos/config/director` | Director configuration (`/etc/bareos`)       |
+| `data/bareos/config/storage`  | Storage daemon configuration                 |
+| `data/bareos/config/client`   | File daemon configuration                    |
+| `data/bareos/config/webui`    | Web UI configuration (`directors.ini`)       |
+| `data/bareos/data/director`   | Director state and catalog dump              |
+| `data/bareos/data/storage`    | Backup volumes                               |
+| `data/pgsql`                  | PostgreSQL data (`/var/lib/postgresql`)      |
+
+`data/` is ignored by git: it contains generated passwords.
+
+## Security notes
+
+- Do not commit `.env` or `data/`.
+- Only `bareos` (two networks) and `catalog` (internal, no egress) exist; the
+  database is reachable from the director only and is not published.
+- All published ports default to `127.0.0.1`. Set `SD_BIND=0.0.0.0` only when
+  file daemons on other hosts back up to this storage daemon. Publish the web
+  UI through an HTTPS reverse proxy or VPN — the web UI console uses
+  `TLS Enable = No` because PHP does not support TLS-PSK.
+- Containers run with `cap_drop: ALL` plus the few capabilities the entrypoints
+  need to fix file ownership and drop privileges, `no-new-privileges`, memory
+  and PID limits and log rotation. Without `CAP_SYS_PTRACE` even root inside a
+  container cannot read another process's `/proc/<pid>/environ`.
+- Passwords generated by the Bareos packages at build time (director console,
+  `bareos-mon`) are rotated at first start, so containers built from the same
+  image never share secrets. Previously committed configuration with such
+  passwords still exists in git history (commit `4b9041a`); treat those values
+  as compromised.
+- Repository signing keys (Bareos, PGDG) are verified against pinned
+  fingerprints at build time (`BAREOS_KEY_FPR`, empty disables the check for
+  the subscription repository).
+- Images are pinned by digest, scanned with Trivy before push, signed with
+  cosign and published with SBOM and provenance. See [SECURITY.md](SECURITY.md).
+
+## PostgreSQL upgrade
+
+The stack uses `postgres:18`, which stores data in
+`/var/lib/postgresql/18/docker` inside the mounted `data/pgsql`. Major upgrades
+require migrating the data directory, e.g. with
+[postgresql-upgrade][psql-upgrade-href] or `pg_dump`/`pg_restore`. Bump
+`PG_CLIENT_VERSION` in `director-pgsql/Dockerfile` and `client/Dockerfile`
+accordingly.
+
+After upgrading Bareos itself, start the director once with
+`DB_UPDATE=true` to update the catalog schema, then set it back to `false`.
+
+## Troubleshooting
+
+- **`bareos-fd` restarts with `fatal error: taggedPointerPack`** – a Go
+  binary crashed under amd64 emulation. The client uses `setpriv` instead of
+  `gosu` for this reason; rebuild the image with `docker compose build bareos-fd`.
+- **Web UI returns 503** – PHP-FPM is not running. Check
+  `docker compose logs bareos-webui`; the web UI must not run with
+  `platform: linux/amd64` on Apple Silicon.
+- **Director cannot connect to the catalog** – the configuration in
+  `data/bareos/config/director` was created with other passwords than `.env`.
+  See the reset procedure above.
+- **No mail arrives** – `docker compose logs smtpd`; without a smarthost the
+  host needs outbound port 25, and providers reject direct mail that fails the
+  sender domain's DMARC/SPF policy (`status=bounced … 5.7.26`). Configure
+  `SMTP_SMARTHOST` with credentials of the sender domain's mail provider, or
+  use a `SENDER_MAIL` address whose domain allows it.
+- **`ERROR: role "bareos" already exists` during DB init** – printed by the
+  Bareos `grant_bareos_privileges` script when the role exists; harmless.
+- **Exporter shows no `bareos_*` metrics** – it needs at least one finished
+  job in the catalog; run `BackupCatalog` once.
+
+## Development
+
+### Repository layout
+
+| Path              | Content                                                |
+| ----------------- | ------------------------------------------------------ |
+| `director-pgsql/` | Director image, entrypoint, `admin.conf`, `webhook-notify` |
+| `storage/`        | Storage daemon image                                   |
+| `client/`         | File daemon image                                      |
+| `webui/`          | Web UI image (Apache + PHP-FPM)                        |
+| `api/`            | REST API image (`bareos-restapi` in a venv)            |
+| `smtpd/`          | Postfix relay image                                    |
+
+Each Bareos entrypoint unpacks the default configuration from a tarball
+created at build time (`/bareos-*.tgz`), rotates build-time passwords, applies
+environment variables with `sed` and writes `bareos-config.control` so it runs
+only once. All scripts run with `set -euo pipefail`.
+
+### Checks
+
+```bash
+pre-commit install   # gitleaks, shellcheck, hadolint, yaml and whitespace checks
+pre-commit run --all-files
+```
+
+### CI and updates
+
+- `docker-publish.yml` builds every component × Ubuntu variant on pushes, PRs,
+  tags and weekly; scans each image with Trivy (fixable `CRITICAL` fails the
+  build, results go to code scanning); starts the whole stack per Ubuntu
+  variant (`compose-test`) and checks director ↔ sd/fd connectivity, a web UI
+  login and a rendered `/bareos-webui/dashboard/`, that no password is left in
+  any daemon's environment, a successful `BackupCatalog` job and mail hand-over
+  to Postfix; only then pushes to
+  `ghcr.io/<owner>/bareos-{dir,sd,fd,webui,api,smtpd}` with tags
+  `ubuntu26.04`, `ubuntu24.04`, `<version>-ubuntu<ver>`, `sha-*`, `latest`
+  (26.04), signs with cosign and attaches SBOM + provenance.
+- `security-scan.yml` scans the repository (misconfig, secrets) on every push
+  and re-scans published images daily.
+- `pre-commit.yml`, CodeQL (workflows), dependency review and OpenSSF
+  Scorecard run on pull requests.
+- Renovate keeps base image digests, Actions, pre-commit hooks,
+  `bareos-restapi` and `PG_CLIENT_VERSION` up to date; minor/patch and digest
+  updates are auto-merged, majors need a review.
+
+## Documentation
+
+- [Bareos documentation][bareos-doc]
 
 ## License
+
+MIT, see [LICENSE](LICENSE).
+
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmaxvandl%2Fbareos.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmaxvandl%2Fbareos?ref=badge_large)
+
+[bareos-href]: https://www.bareos.org
+[bareos-doc]: https://docs.bareos.org
+[bareos-exporter-href]: https://github.com/vierbergenlars/bareos_exporter
+[docker-compose-href]: https://docs.docker.com/compose
+[docker-href]: https://docs.docker.com/get-docker
+[compose-secrets]: https://docs.docker.com/compose/how-tos/use-secrets/
+[license-img]: https://img.shields.io/badge/License-MIT-yellow.svg
+[os-based-ubuntu]: https://img.shields.io/badge/os-ubuntu%2024.04%20%7C%2026.04-9cf
+[psql-upgrade-href]: https://github.com/barcus/postgresql-upgrade

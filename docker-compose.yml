@@ -1,118 +1,304 @@
 ---
+# All secrets and site-specific values are defined in .env (see .env.dist).
+# Passwords are passed as compose secrets (files under /run/secrets), not as
+# container environment, so they do not show up in `docker inspect` or /proc.
+
+x-hardening: &hardening
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  pids_limit: 256
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+# Entrypoints run as root to fix ownership, then daemons drop to an unprivileged user
+x-bareos-caps: &bareos-caps
+  - CHOWN
+  - DAC_OVERRIDE
+  - FOWNER
+  - SETUID
+  - SETGID
+
 services:
   bareos-dir:
-    build: ./director-pgsql/
-    image: bareos-dir:23.0.3
-    platform: linux/amd64
+    <<: *hardening
+    build:
+      context: ./director-pgsql/
+      args:
+        UBUNTU_VERSION: ${UBUNTU_VERSION:-26.04}
+    image: bareos-dir:25.1.2-ubuntu${UBUNTU_VERSION:-26.04}
+    platform: linux/amd64 # Bareos community repo ships amd64 packages only
+    cap_add: *bareos-caps
+    mem_limit: 1g
     volumes:
       - ./data/bareos/config/director:/etc/bareos
       - ./data/bareos/data/director:/var/lib/bareos # required for MyCatalog backup
+    secrets:
+      - db_password
+      - db_admin_password
+      - bareos_sd_password
+      - bareos_fd_password
+      - bareos_webui_password
     environment:
-      - DB_INIT=true #should be 'true' if bareos db does not exist
+      - DB_INIT=true # safe to keep: init runs once (guarded by bareos-db.control)
       - DB_UPDATE=false
       - DB_HOST=bareos-db
       - DB_PORT=5432
-      - DB_NAME=bareos
-      - DB_USER=bareos
-      - DB_PASSWORD=${DB_PASSWORD} # defined in .env file
-      - DB_ADMIN_USER=${DB_ADMIN_USER} # defined in .env file
-      - DB_ADMIN_PASSWORD=${DB_ADMIN_PASSWORD} # defined in .env file
+      - DB_NAME=${DB_NAME:-bareos}
+      - DB_USER=${DB_USER:-bareos}
+      - DB_PASSWORD_FILE=/run/secrets/db_password
+      - DB_ADMIN_USER=${DB_ADMIN_USER:?set in .env}
+      - DB_ADMIN_PASSWORD_FILE=/run/secrets/db_admin_password
+      - BAREOS_DIR_PASSWORD=${BAREOS_DIR_PASSWORD:-} # bconsole password, random if empty
       - BAREOS_SD_HOST=bareos-sd
-      - BAREOS_SD_PASSWORD=${BAREOS_SD_PASSWORD} # defined in .env file
+      - BAREOS_SD_PASSWORD_FILE=/run/secrets/bareos_sd_password
       - BAREOS_FD_HOST=bareos-fd
-      - BAREOS_FD_PASSWORD=${BAREOS_FD_PASSWORD} # defined in .env file
-      - BAREOS_WEBUI_PASSWORD=${BAREOS_WEBUI_PASSWORD} # defined in .env file
-      - SMTP_HOST=smtpd:8025 # Local smtp container
-      #- SENDER_MAIL=your-sender@mail.address #optional
-      - ADMIN_MAIL=your@mail.address # Change me!
-      # Optional you can gets backup notification via Slack or Telegram
-      - WEBHOOK_NOTIFICATION=false # true or false if set to true email notification gets disabled
-      - WEBHOOK_TYPE=slack # choose slack or telegram
-      - WEBHOOK_URL= # set the slack or telegram URL
-      - WEBHOOK_CHAT_ID= # for telegram only set the <chat_id>
+      - BAREOS_FD_PASSWORD_FILE=/run/secrets/bareos_fd_password
+      - BAREOS_WEBUI_PASSWORD_FILE=/run/secrets/bareos_webui_password
+      - SMTP_HOST=smtpd:8025 # local smtp relay container
+      - SENDER_MAIL=${SENDER_MAIL:-}
+      - ADMIN_MAIL=${ADMIN_MAIL:?set in .env}
+      # Optional backup notification via Slack or Telegram
+      - WEBHOOK_NOTIFICATION=${WEBHOOK_NOTIFICATION:-false} # if true, email notification gets disabled
+      - WEBHOOK_TYPE=${WEBHOOK_TYPE:-slack} # slack or telegram
+      - WEBHOOK_URL=${WEBHOOK_URL:-} # read at job time by webhook-notify, therefore plain env
+      - WEBHOOK_CHAT_ID=${WEBHOOK_CHAT_ID:-} # telegram only
+    networks:
+      - bareos
+      - catalog
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/9101"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
     depends_on:
-      - bareos-db
+      bareos-db:
+        condition: service_healthy
+      smtpd:
+        condition: service_started
 
   bareos-sd:
-    build: ./storage/
-    image: bareos-storage:23.0.3
+    <<: *hardening
+    build:
+      context: ./storage/
+      args:
+        UBUNTU_VERSION: ${UBUNTU_VERSION:-26.04}
+    image: bareos-storage:25.1.2-ubuntu${UBUNTU_VERSION:-26.04}
     platform: linux/amd64
+    cap_add: *bareos-caps
+    mem_limit: 1g
     ports:
-      - 9103:9103
+      # Remote file daemons connect here: set SD_BIND=0.0.0.0 (or a host IP) in .env
+      - ${SD_BIND:-127.0.0.1}:9103:9103
     volumes:
       - ./data/bareos/config/storage:/etc/bareos
       - ./data/bareos/data/storage:/var/lib/bareos/storage
+    secrets:
+      - bareos_sd_password
     environment:
-      - BAREOS_SD_PASSWORD=${BAREOS_SD_PASSWORD} # defined in .env file
+      - BAREOS_SD_PASSWORD_FILE=/run/secrets/bareos_sd_password
+    networks:
+      - bareos
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/9103"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
   bareos-fd:
-    image: bareos-client:23.0.3
-    build: ./client/
+    <<: *hardening
+    build:
+      context: ./client/
+      args:
+        UBUNTU_VERSION: ${UBUNTU_VERSION:-26.04}
+    image: bareos-client:25.1.2-ubuntu${UBUNTU_VERSION:-26.04}
     platform: linux/amd64
+    cap_add: *bareos-caps
+    # To back up host paths as root add:
+    #   environment: FORCE_ROOT=true
+    #   cap_add: DAC_READ_SEARCH (read every file) and mount the paths read-only
+    mem_limit: 512m
     volumes:
       - ./data/bareos/config/client:/etc/bareos
       - ./data/bareos/data/director:/var/lib/bareos-director # required for MyCatalog backup
+    secrets:
+      - bareos_fd_password
     environment:
-      - BAREOS_FD_PASSWORD=${BAREOS_FD_PASSWORD} # defined in .env file
+      - BAREOS_FD_PASSWORD_FILE=/run/secrets/bareos_fd_password
+      - BAREOS_FD_NAME=bareos-fd
       - FORCE_ROOT=false
       #- PUID=1500 # force bareos user ID
       #- PGID=1500 # force bareos group ID
+    networks:
+      - bareos
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/9102"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
-  # bareos-webui:
-  #   build: ./webui/
-  #   image: bareos-webui:23.0.3
-  #   platform: linux/amd64
-  #   ports:
-  #     - 8080:80
-  #   environment:
-  #     - BAREOS_DIR_HOST=bareos-dir
-  #     - SERVER_STATS=yes
-  #   volumes:
-  #     - ./data/bareos/config/webui:/etc/bareos-webui
-
-  # php-fpm:
-  #   container_name: php-fpm
-  #   image: php-fpm:22.0.3
-  #   # build: ./php-fpm
-  #   restart: always
-  #   volumes:
-  #     - ./data/bareos/config/webui:/etc/bareos-webui
-  #     - ./data/bareos/data/webui:/usr/share/bareos-webui
+  bareos-webui:
+    <<: *hardening
+    build:
+      context: ./webui/
+      args:
+        UBUNTU_VERSION: ${UBUNTU_VERSION:-26.04}
+    image: bareos-webui:25.1.2-ubuntu${UBUNTU_VERSION:-26.04} # bareos-webui is arch-independent: runs natively, no amd64 emulation
+    init: true # reap apache/php-fpm workers
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+      - KILL # apache/php-fpm masters signal their www-data workers
+      - NET_BIND_SERVICE
+    mem_limit: 512m
+    ports:
+      # Plain HTTP: keep on localhost and publish through an HTTPS reverse proxy or VPN
+      - ${WEBUI_BIND:-127.0.0.1}:8080:80
+    environment:
+      - BAREOS_DIR_HOST=bareos-dir
+    volumes:
+      - ./data/bareos/config/webui:/etc/bareos-webui
+    networks:
+      - bareos
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1/bareos-webui/auth/login"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - bareos-dir
 
   bareos-db:
-    image: postgres:17 #16.2
-    platform: linux/amd64
+    <<: *hardening
+    image: postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+    cap_add: *bareos-caps
+    mem_limit: 1g
+    shm_size: 256m
     volumes:
-      - ./data/pgsql/data:/var/lib/postgresql/data
+      - ./data/pgsql:/var/lib/postgresql # postgres >= 18: data lives in /var/lib/postgresql/<major>/docker
+    secrets:
+      - db_admin_password
     environment:
-      - POSTGRES_USER=${DB_ADMIN_USER} # defined in .env file
-      - POSTGRES_PASSWORD=${DB_ADMIN_PASSWORD} # defined in .env file
-      - POSTGRES_INITDB_ARGS=--encoding=SQL_ASCII
+      - POSTGRES_USER=${DB_ADMIN_USER:?set in .env}
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_admin_password
+      - POSTGRES_INITDB_ARGS=--encoding=SQL_ASCII # required by Bareos
+    # No published port, internal network only.
+    # For local debugging add ports: ["127.0.0.1:5432:5432"] and network bareos.
+    networks:
+      - catalog
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  smtpd:
+    <<: *hardening
+    build:
+      context: ./smtpd/
+      args:
+        UBUNTU_VERSION: ${UBUNTU_VERSION:-26.04}
+    image: bareos-smtpd:1-ubuntu${UBUNTU_VERSION:-26.04}
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+      - KILL # postfix master signals its workers
+    mem_limit: 128m
+    secrets:
+      - smtp_password
+    environment:
+      - RELAY_HOSTNAME=${SMTP_HELO_NAME:-bareos.local}
+      # Optional smarthost (host:port); without it mail is delivered directly (outbound port 25 must be open)
+      - SMARTHOST=${SMTP_SMARTHOST:-}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD_FILE=/run/secrets/smtp_password
+    networks:
+      - bareos
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/8025"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Optional tools
+  # Bareos REST API: http://127.0.0.1:8000/docs, authenticates with the web UI console
+  bareos-api:
+    <<: *hardening
+    build:
+      context: ./api/
+      args:
+        UBUNTU_VERSION: ${UBUNTU_VERSION:-26.04}
+    image: bareos-api:25.1.1-ubuntu${UBUNTU_VERSION:-26.04}
+    mem_limit: 256m
     ports:
-      - 5432:5432
-  # smtpd:
-  #   image: devture/exim-relay
+      - 127.0.0.1:8000:8000
+    environment:
+      - BAREOS_DIR_HOST=bareos-dir
+      - BAREOS_API_SECRET=${BAREOS_API_SECRET:-} # JWT signing key, random per start if empty
+    networks:
+      - bareos
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/docs',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - bareos-dir
 
-  # # Optional tools
-  # # Bareos API
-  # bareos-api:
-  #   image: bareos-api:23.0.3
-  #   ports:
-  #     - 8000:8000
-  #   environment:
-  #     - BAREOS_DIR_HOST=bareos-dir
+  # Bareos metrics exporter for Prometheus: http://127.0.0.1:9625/metrics
+  # The exporter only reads DB_PASSWORD from the environment, so it is the one
+  # container that keeps the catalog password in its env.
+  bareos-exporter:
+    <<: *hardening
+    image: vierbergenlars/bareos_exporter:v0.6.0
+    mem_limit: 128m
+    ports:
+      - 127.0.0.1:9625:9625
+    environment:
+      - DB_HOST=bareos-db
+      - DB_NAME=${DB_NAME:-bareos}
+      - DB_USER=${DB_USER:-bareos}
+      - DB_PASSWORD=${DB_PASSWORD:?set in .env}
+      - WAIT_FOR_DB=15
+    networks:
+      - bareos # published port needs a non-internal network
+      - catalog
+    depends_on:
+      bareos-db:
+        condition: service_healthy
 
-  # # Bareos metrics exporter for Prometheus
-  # bareos-exporter:
-  #   image: vierbergenlars/bareos_exporter:v0.6.0
-  #   ports:
-  #     - 9625:9625
-  #   environment:
-  #     - DB_HOST=bareos-db
-  #     - DB_USER=bareos
-  #     - DB_PASSWORD=${DB_PASSWORD}
-  #     - WAIT_FOR_DB=15
-  #   depends_on:
-  #     - bareos-db
+secrets:
+  db_password:
+    environment: DB_PASSWORD
+  db_admin_password:
+    environment: DB_ADMIN_PASSWORD
+  bareos_sd_password:
+    environment: BAREOS_SD_PASSWORD
+  bareos_fd_password:
+    environment: BAREOS_FD_PASSWORD
+  bareos_webui_password:
+    environment: BAREOS_WEBUI_PASSWORD
+  smtp_password:
+    environment: SMTP_PASSWORD
+
+networks:
+  bareos: {}
+  catalog:
+    internal: true # catalog DB has no egress and is not reachable from other services
 
 #EOF
