@@ -5,7 +5,7 @@
     ':semanticCommits',
   ],
   platform: 'github',
-  baseBranches: ['main'],
+  baseBranchPatterns: ['main'],
   timezone: 'Asia/Jerusalem',
   schedule: ['before 6am'],
   prHourlyLimit: 4,
