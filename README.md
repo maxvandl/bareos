@@ -285,8 +285,8 @@ pre-commit run --all-files
   (26.04), signs with cosign and attaches SBOM + provenance.
 - `security-scan.yml` scans the repository (misconfig, secrets) on every push
   and re-scans published images daily.
-- `pre-commit.yml`, CodeQL (workflows), dependency review and OpenSSF
-  Scorecard run on pull requests.
+- `pre-commit.yml`, dependency review and OpenSSF Scorecard run on pull
+  requests; CodeQL (workflow files) runs through GitHub's default setup.
 - Renovate keeps base image digests, Actions, pre-commit hooks,
   `bareos-restapi` and `PG_CLIENT_VERSION` up to date; minor/patch and digest
   updates are auto-merged, majors need a review.
