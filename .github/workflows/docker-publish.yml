@@ -34,21 +34,27 @@ jobs:
           - name: dir
             context: ./director-pgsql
             platforms: linux/amd64
+            description: Bareos Director with PostgreSQL catalog support
           - name: sd
             context: ./storage
             platforms: linux/amd64
+            description: Bareos Storage Daemon
           - name: fd
             context: ./client
             platforms: linux/amd64
+            description: Bareos File Daemon (client)
           - name: webui
             context: ./webui
             platforms: linux/amd64,linux/arm64
+            description: Bareos Web UI (Apache + PHP-FPM)
           - name: api
             context: ./api
             platforms: linux/amd64,linux/arm64
+            description: Bareos REST API (bareos-restapi)
           - name: smtpd
             context: ./smtpd
             platforms: linux/amd64,linux/arm64
+            description: Postfix relay for Bareos job reports
     permissions:
       contents: read
       security-events: write # upload Trivy SARIF
@@ -77,8 +83,15 @@ jobs:
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        env:
+          # annotate the multi-arch index too, ghcr shows the index description
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
           images: ${{ env.IMAGE }}
+          labels: |
+            org.opencontainers.image.description=${{ matrix.component.description }}
+          annotations: |
+            org.opencontainers.image.description=${{ matrix.component.description }}
           flavor: |
             latest=false
           tags: |
@@ -248,21 +261,27 @@ jobs:
           - name: dir
             context: ./director-pgsql
             platforms: linux/amd64
+            description: Bareos Director with PostgreSQL catalog support
           - name: sd
             context: ./storage
             platforms: linux/amd64
+            description: Bareos Storage Daemon
           - name: fd
             context: ./client
             platforms: linux/amd64
+            description: Bareos File Daemon (client)
           - name: webui
             context: ./webui
             platforms: linux/amd64,linux/arm64
+            description: Bareos Web UI (Apache + PHP-FPM)
           - name: api
             context: ./api
             platforms: linux/amd64,linux/arm64
+            description: Bareos REST API (bareos-restapi)
           - name: smtpd
             context: ./smtpd
             platforms: linux/amd64,linux/arm64
+            description: Postfix relay for Bareos job reports
     permissions:
       contents: read
       packages: write
@@ -291,8 +310,15 @@ jobs:
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        env:
+          # annotate the multi-arch index too, ghcr shows the index description
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
           images: ${{ env.IMAGE }}
+          labels: |
+            org.opencontainers.image.description=${{ matrix.component.description }}
+          annotations: |
+            org.opencontainers.image.description=${{ matrix.component.description }}
           flavor: |
             latest=false
           tags: |

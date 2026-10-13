@@ -9,7 +9,10 @@ FROM ubuntu:26.04@sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a
 FROM base-${UBUNTU_VERSION}
 ARG UBUNTU_VERSION
 
-LABEL maintainer="MAYANGINDEX LLC"
+LABEL maintainer="MAYANGINDEX LLC" \
+      org.opencontainers.image.description="Bareos Director with PostgreSQL catalog support" \
+      org.opencontainers.image.source="https://github.com/maxvandl/bareos" \
+      org.opencontainers.image.licenses="MIT"
 
 ARG BUILD_DATE
 ARG NAME
